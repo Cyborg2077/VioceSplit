@@ -5,43 +5,31 @@
 功能：
 1. 自动检测音频中的有声和无声段落
 2. 按照有声段落进行分割
-3. 使用Whisper进行语音转文字
-4. 根据转录文字生成文件名
-5. 保存分割后的音频文件
+3. 保存分割后的音频文件
 """
 
 import os
-import re
 import argparse
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List
 
-import whisper
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
-import librosa
-import numpy as np
 
 
 class VoiceSplitter:
     """音频分割器类"""
     
-    def __init__(self, whisper_model: str = "base", output_dir: str = "output"):
+    def __init__(self, output_dir: str = "output"):
         """
         初始化音频分割器
         
         Args:
-            whisper_model: Whisper模型大小 (tiny, base, small, medium, large)
             output_dir: 输出目录
         """
-        self.whisper_model = whisper_model
         self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
-        
-        # 加载Whisper模型
-        print(f"正在加载Whisper模型: {whisper_model}")
-        self.model = whisper.load_model(whisper_model)
-        print("模型加载完成")
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        print(f"输出目录: {self.output_dir}")
     
     def load_audio(self, file_path: str) -> AudioSegment:
         """
@@ -98,61 +86,7 @@ class VoiceSplitter:
         print(f"检测到 {len(segments)} 个有声段落")
         return segments
     
-    def transcribe_audio(self, audio_segment: AudioSegment) -> str:
-        """
-        使用Whisper转录音频
-        
-        Args:
-            audio_segment: 音频段落
-            
-        Returns:
-            转录文字
-        """
-        # 将AudioSegment转换为numpy数组
-        samples = np.array(audio_segment.get_array_of_samples())
-        
-        # 如果是立体声，取平均值转为单声道
-        if audio_segment.channels == 2:
-            samples = samples.reshape((-1, 2)).mean(axis=1)
-        
-        # 归一化到[-1, 1]范围
-        samples = samples.astype(np.float32) / 32768.0
-        
-        # 使用Whisper进行转录
-        result = self.model.transcribe(
-            samples, 
-            language="zh",  # 指定中文
-            fp16=False
-        )
-        
-        return result["text"].strip()
-    
-    def clean_filename(self, text: str, max_length: int = 50) -> str:
-        """
-        清理文字，生成合法的文件名
-        
-        Args:
-            text: 原始文字
-            max_length: 最大长度
-            
-        Returns:
-            清理后的文件名
-        """
-        # 移除标点符号和特殊字符
-        text = re.sub(r'[^\w\s-]', '', text)
-        
-        # 替换空格为下划线
-        text = re.sub(r'\s+', '_', text)
-        
-        # 限制长度
-        if len(text) > max_length:
-            text = text[:max_length]
-        
-        # 如果为空，使用默认名称
-        if not text:
-            text = "未识别"
-            
-        return text
+
     
     def process_audio(self, input_file: str, 
                      min_silence_len: int = 500,
@@ -190,14 +124,8 @@ class VoiceSplitter:
         for i, segment in enumerate(segments, 1):
             print(f"\n处理第 {i}/{len(segments)} 个段落 (时长: {len(segment)/1000:.2f}秒)")
             
-            # 转录音频
-            print("正在转录...")
-            transcription = self.transcribe_audio(segment)
-            print(f"转录结果: {transcription}")
-            
             # 生成文件名
-            clean_text = self.clean_filename(transcription)
-            filename = f"{input_name}_{i:03d}_{clean_text}.wav"
+            filename = f"{input_name}_{i:03d}.wav"
             output_path = self.output_dir / filename
             
             # 保存音频段落
@@ -215,9 +143,6 @@ def main():
     parser = argparse.ArgumentParser(description="音频分割工具")
     parser.add_argument("input_file", help="输入音频/视频文件路径")
     parser.add_argument("-o", "--output", default="output", help="输出目录 (默认: output)")
-    parser.add_argument("-m", "--model", default="base", 
-                       choices=["tiny", "base", "small", "medium", "large"],
-                       help="Whisper模型大小 (默认: base)")
     parser.add_argument("--min-silence", type=int, default=500,
                        help="最小静音长度(毫秒) (默认: 500)")
     parser.add_argument("--silence-thresh", type=int, default=-40,
@@ -233,15 +158,12 @@ def main():
         return
     
     # 创建分割器
-    splitter = VoiceSplitter(
-        whisper_model=args.model,
-        output_dir=args.output
-    )
+    splitter = VoiceSplitter(output_dir=args.output)
     
     try:
         # 处理音频
         output_files = splitter.process_audio(
-            args.input_file,
+            input_file=args.input_file,
             min_silence_len=args.min_silence,
             silence_thresh=args.silence_thresh,
             keep_silence=args.keep_silence
@@ -253,7 +175,7 @@ def main():
         print(f"生成文件数: {len(output_files)}")
         
     except Exception as e:
-        print(f"处理过程中发生错误: {e}")
+        print(f"处理失败: {e}")
         import traceback
         traceback.print_exc()
 

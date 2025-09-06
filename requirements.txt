@@ -1,21 +1,18 @@
-# Audio splitting tool dependencies
-
-# Speech recognition
-openai-whisper>=20231117
+# Audio and Video Splitting Tool Dependencies
+# Simple audio/video splitting without speech recognition
 
 # Audio processing
 pydub>=0.25.1
-librosa>=0.10.0
 
-# Numerical computing
-numpy>=1.21.0
-scipy>=1.7.0
+# System Requirements:
+# 1. FFmpeg is REQUIRED for processing MP3, MP4, AVI, MOV and other audio/video formats
+# 2. Installation options:
+#    - Windows: Download from https://ffmpeg.org/download.html
+#    - Or use: conda install ffmpeg
+#    - Or use: choco install ffmpeg (requires Chocolatey)
+#    - Or use: winget install ffmpeg
+# 3. Make sure FFmpeg is added to your system PATH
 
-# Deep learning framework (Whisper dependency)
-torch>=1.10.0
-torchaudio>=0.10.0
-
-# Note: FFmpeg is required for processing MP3 and other audio formats
-# Windows users can download from https://ffmpeg.org/download.html
-# Or use: conda install ffmpeg
-# Or use: choco install ffmpeg (requires Chocolatey)
+# Supported formats:
+# Audio: WAV, MP3, FLAC, AAC, OGG, M4A
+# Video: MP4, AVI, MOV, MKV, WMV, FLV (audio track will be extracted)
